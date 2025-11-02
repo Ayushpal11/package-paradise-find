@@ -86,17 +86,11 @@ package-paradise-find/
 └── DEPLOYMENT.md                 # Deployment guide
 ```
 
-## 🚀 Quick Start
-
-> **👋 New here?** Start with **[START_HERE.md](START_HERE.md)** for navigation and quick paths!
-
 ### Prerequisites
 
 - Node.js 18+ and npm
 - PostgreSQL database (local or cloud)
 - Git
-
-> **📚 Database Setup**: Need help setting up PostgreSQL? See **[DATABASE_SETUP.md](DATABASE_SETUP.md)** for complete guide with step-by-step instructions! Or try the **[QUICK_DB_SETUP.md](QUICK_DB_SETUP.md)** 2-minute setup.
 
 ### Frontend Setup
 
