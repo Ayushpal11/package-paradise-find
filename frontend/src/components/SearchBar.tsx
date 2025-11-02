@@ -84,10 +84,13 @@ export const SearchBar = () => {
         </div>
       </div>
 
-      <Button type="submit" size="lg" className="w-full md:w-auto">
-        <Search className="mr-2 h-5 w-5" />
-        Search Packages
-      </Button>
+      <div className="h-4" />
+      <div className="flex justify-center">
+        <Button type="submit" size="lg" className="w-full md:w-auto hover:bg-primary/90 flex items-center justify-center">
+          <Search className="mr-2 h-5 w-5" />
+          Search Packages
+        </Button>
+      </div>
     </form>
   );
 };

@@ -11,14 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { packageApi } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 interface EnquiryFormProps {
+  packageId: string;
   packageTitle: string;
   onClose: () => void;
 }
 
-export const EnquiryForm = ({ packageTitle, onClose }: EnquiryFormProps) => {
+export const EnquiryForm = ({ packageId, packageTitle, onClose }: EnquiryFormProps) => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,15 +31,36 @@ export const EnquiryForm = ({ packageTitle, onClose }: EnquiryFormProps) => {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
-    toast({
-      title: "Enquiry Submitted!",
-      description: "We'll contact you soon with package details.",
-    });
-    
-    onClose();
+    try {
+      await packageApi.submitEnquiry({
+        packageId,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        travellers: parseInt(formData.travellers),
+        message: formData.message || undefined,
+      });
+      
+      toast({
+        title: "Enquiry Submitted!",
+        description: "We'll contact you soon with package details.",
+      });
+      
+      onClose();
+    } catch (error) {
+      console.error("Error submitting enquiry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit enquiry. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,11 +129,18 @@ export const EnquiryForm = ({ packageTitle, onClose }: EnquiryFormProps) => {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1" disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
-              Submit Enquiry
+            <Button type="submit" className="flex-1" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Enquiry"
+              )}
             </Button>
           </div>
         </form>
