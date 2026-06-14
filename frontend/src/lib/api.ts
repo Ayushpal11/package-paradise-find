@@ -108,6 +108,33 @@ export interface Vendor {
   rating: number;
 }
 
+export interface AITripPlanParams {
+  destination: string;
+  days: number;
+  startDate?: string;
+  preferences?: string;
+  budget?: string;
+  travellers?: number;
+  origin?: string;
+}
+
+export interface AITripPlanResponse {
+  success: boolean;
+  data: {
+    destination: string;
+    schedule: string;
+    analysis: string;
+    recommendations: string;
+    references: Array<{
+      title: string;
+      price: number;
+      vendor: string;
+      url: string;
+      platform: string;
+    }>;
+  };
+}
+
 // API functions
 export const packageApi = {
   // Search for packages
@@ -125,6 +152,69 @@ export const packageApi = {
   // Submit enquiry
   submitEnquiry: async (enquiry: EnquirySubmit): Promise<void> => {
     await api.post('/api/enquiries', enquiry);
+  },
+};
+
+// AI API functions
+export const aiApi = {
+  // Get AI trip plan
+  getPlan: async (params: AITripPlanParams): Promise<AITripPlanResponse> => {
+    const response = await api.post('/api/ai/plan', params, {
+      timeout: 60000, // 60 seconds for AI generation
+    });
+    return response.data;
+  },
+
+  // Get AI cost analysis only
+  getCostAnalysis: async (params: Partial<AITripPlanParams>): Promise<{ success: boolean; analysis: string }> => {
+    const response = await api.post('/api/ai/cost-analysis', params);
+    return response.data;
+  },
+};
+
+// Tour API functions (internet search)
+export interface FetchedTour {
+  id: number;
+  title: string;
+  destination: string;
+  origin: string;
+  tour_start_date: string;
+  tour_end_date: string;
+  duration: string;
+  price: number;
+  currency: string;
+  vendor_name: string;
+  contact_phone: string;
+  contact_email: string;
+  contact_whatsapp: string;
+  source_platform: string;
+  source_url: string;
+  image_url: string;
+  amenities: string[];
+  itinerary: any;
+  full_plan: string;
+  highlights: string[];
+  inclusions: string[];
+  exclusions: string[];
+}
+
+export const tourApi = {
+  // Fetch planned tours from internet (searches Google/social)
+  fetchInternet: async (params: { destination: string; origin?: string; fetchDetails?: boolean }): Promise<{ success: boolean; tours: FetchedTour[] }> => {
+    const response = await api.get('/api/fetch-tours', { params });
+    return response.data;
+  },
+
+  // Get recently fetched tours from DB
+  getRecent: async (params: { destination?: string; limit?: number }): Promise<{ success: boolean; tours: FetchedTour[] }> => {
+    const response = await api.get('/api/fetch-tours/recent', { params });
+    return response.data;
+  },
+
+  // Get single fetched tour details
+  getById: async (id: string): Promise<FetchedTour> => {
+    const response = await api.get(`/api/fetch-tours/${id}`);
+    return response.data;
   },
 };
 

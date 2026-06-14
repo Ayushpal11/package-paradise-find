@@ -5,6 +5,9 @@ import { initializeDB } from './db.js';
 import packageRoutes from './routes/packages.js';
 import enquiryRoutes from './routes/enquiries.js';
 import scraperRoutes from './routes/scraper.js';
+import tourRoutes from './routes/tours.js';
+import priceHistoryRoutes from './routes/priceHistory.js';
+import aiRoutes from './routes/ai.js';
 
 dotenv.config();
 
@@ -27,8 +30,11 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/packages', packageRoutes);
+app.use('/api/packages', priceHistoryRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/scraper', scraperRoutes);
+app.use('/api/fetch-tours', tourRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

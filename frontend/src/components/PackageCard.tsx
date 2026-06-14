@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 interface PackageCardProps {
   id: string;
@@ -25,6 +26,7 @@ interface PackageCardProps {
   image: string;
   refundable: boolean;
   isOTA?: boolean;
+  index?: number;
 }
 
 export const PackageCard = ({
@@ -41,17 +43,24 @@ export const PackageCard = ({
   image,
   refundable,
   isOTA,
+  index = 0,
 }: PackageCardProps) => {
   const navigate = useNavigate();
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer group">
-      <div className="relative h-48 overflow-hidden">
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      whileHover={{ y: -5 }}
+    >
+      <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group border-none shadow-md bg-white/80 backdrop-blur-sm">
+        <div className="relative h-48 overflow-hidden">
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          />
         {refundable && (
           <Badge className="absolute top-3 right-3 bg-accent text-accent-foreground">
             Refundable
@@ -140,5 +149,6 @@ export const PackageCard = ({
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   );
 };

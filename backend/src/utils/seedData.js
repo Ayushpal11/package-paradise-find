@@ -345,6 +345,8 @@ const packages = [
   },
 ];
 
+const tours = [];
+
 async function seedDatabase() {
   try {
     console.log('🌱 Starting database seed...');
@@ -357,6 +359,7 @@ async function seedDatabase() {
     await query('DELETE FROM enquiries');
     await query('DELETE FROM packages');
     await query('DELETE FROM vendors');
+    await query('DELETE FROM fetched_tours');
 
     // Insert vendors
     console.log('📝 Inserting vendors...');
@@ -427,15 +430,34 @@ async function seedDatabase() {
       );
     }
 
+    // Insert fetched tours
+    console.log('🌐 Inserting fetched internet tours...');
+    for (const tour of tours) {
+      await query(
+        `INSERT INTO fetched_tours (
+          title, destination, origin, tour_start_date, tour_end_date, duration,
+          price, currency, vendor_name, contact_phone, source_platform, source_url,
+          image_url, amenities, highlights
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [
+          tour.title, tour.destination, tour.origin, tour.tour_start_date, tour.tour_end_date,
+          tour.duration, tour.price, tour.currency, tour.vendor_name, tour.contact_phone,
+          tour.source_platform, tour.source_url, tour.image_url, tour.amenities, tour.highlights
+        ]
+      );
+    }
+
     console.log('✅ Database seeded successfully!');
     
     // Show summary
     const vendorCount = await query('SELECT COUNT(*) FROM vendors');
     const packageCount = await query('SELECT COUNT(*) FROM packages');
+    const tourCount = await query('SELECT COUNT(*) FROM fetched_tours');
     
     console.log('\n📊 Summary:');
     console.log(`   Vendors: ${vendorCount.rows[0].count}`);
     console.log(`   Packages: ${packageCount.rows[0].count}`);
+    console.log(`   Internet Tours: ${tourCount.rows[0].count}`);
     
     process.exit(0);
   } catch (error) {
