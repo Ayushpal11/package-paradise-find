@@ -15,7 +15,7 @@ import { Award, Loader2, RefreshCw } from "lucide-react";
 import { packageApi, Package, aiApi, AITripPlanResponse, tourApi, FetchedTour } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Sparkles, TrendingUp, Calendar as CalendarIcon, Map, Globe } from "lucide-react";
+import { Sparkles, TrendingUp, Calendar as CalendarIcon, Map, Globe, Search } from "lucide-react";
 import { FetchedTourCard } from "@/components/FetchedTourCard";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from 'react-markdown';
@@ -29,7 +29,16 @@ const Results = () => {
   const [fetchedTours, setFetchedTours] = useState<FetchedTour[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchingTours, setFetchingTours] = useState(false);
-  const [filters, setFilters] = useState<any>({});
+  type FilterState = {
+    priceRange?: number[];
+    hotelStars?: number[];
+    meals?: boolean;
+    transfers?: boolean;
+    refundable?: boolean;
+    nights?: number[];
+  };
+
+  const [filters, setFilters] = useState<FilterState>({});
   const [autoRefresh, setAutoRefresh] = useState(true);
   
   // AI states
@@ -74,7 +83,7 @@ const Results = () => {
   const fetchPackages = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = {
+      const params: Record<string, unknown> = {
         destination: searchData?.destination,
         origin: searchData?.origin,
         startDate: searchData?.startDate,
@@ -104,33 +113,48 @@ const Results = () => {
         params.nights = filters.nights;
       }
 
+      // 1. Fetch from DB
       const data = await packageApi.search(params);
       setPackages(data);
 
-      // Also fetch internet tours
+      // 2. Automatically fetch internet tours for this destination
       setFetchingTours(true);
-      const toursResult = await tourApi.getRecent({ destination: searchData?.destination });
-      if (toursResult.success) {
-        // Filter tours by dates if provided
-        let tours = toursResult.tours;
-        if (searchData?.startDate) {
-          const searchStart = new Date(searchData.startDate);
-          tours = tours.filter(t => {
-            if (!t.tour_start_date) return true; // Keep flexible tours
-            const tourStart = new Date(t.tour_start_date);
-            return tourStart >= searchStart;
-          });
-        }
-        
-        // Sort by date (earliest first)
-        tours.sort((a, b) => {
-          if (!a.tour_start_date) return 1;
-          if (!b.tour_start_date) return -1;
-          return new Date(a.tour_start_date).getTime() - new Date(b.tour_start_date).getTime();
-        });
+      
+      // First try cache
+      const recentToursRes = await tourApi.getRecent({ destination: searchData?.destination });
+      let availableTours = recentToursRes.success ? recentToursRes.tours : [];
 
-        setFetchedTours(tours);
+      // If cache is empty for this destination, trigger a live scan automatically
+      if (availableTours.length === 0 && searchData?.destination) {
+        console.log(`Triggering auto-discovery for ${searchData.destination}...`);
+        const liveRes = await tourApi.fetchInternet({ 
+          destination: `${searchData.destination} 14 days`,
+          origin: searchData?.origin,
+          fetchDetails: true 
+        });
+        if (liveRes.success) {
+          availableTours = liveRes.tours;
+        }
       }
+
+      // Filter and sort the final list
+      if (searchData?.startDate) {
+        const searchStart = new Date(searchData.startDate);
+        availableTours = availableTours.filter(t => {
+          if (!t.tour_start_date) return true;
+          const tourStart = new Date(t.tour_start_date);
+          return tourStart >= searchStart;
+        });
+      }
+      
+      availableTours.sort((a, b) => {
+        if (!a.tour_start_date) return 1;
+        if (!b.tour_start_date) return -1;
+        return new Date(a.tour_start_date).getTime() - new Date(b.tour_start_date).getTime();
+      });
+
+      setFetchedTours(availableTours);
+      
     } catch (error) {
       console.error("Error fetching packages:", error);
       toast({
@@ -379,18 +403,41 @@ const Results = () => {
                   </div>
                 </motion.div>
 
-                {packages.length === 0 ? (
-                  <div className="text-center py-20">
-                    <p className="text-lg text-muted-foreground">
-                      No packages found. Try adjusting your filters.
-                    </p>
+                {packages.length === 0 && fetchedTours.length === 0 && !fetchingTours ? (
+                  <div className="text-center py-20 bg-muted/20 rounded-3xl border-2 border-dashed border-slate-200">
+                    <Globe className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-slate-400">No tours found locally</h3>
+                    <p className="text-slate-400 mb-6">We couldn't find any pre-saved packages for this search.</p>
+                    <Button 
+                      className="bg-primary shadow-lg"
+                      onClick={async () => {
+                        setFetchingTours(true);
+                        try {
+                          const res = await tourApi.fetchInternet({ 
+                            destination: searchData?.destination || "India",
+                            origin: searchData?.origin,
+                            fetchDetails: true 
+                          });
+                          if (res.success) {
+                            setFetchedTours(res.tours);
+                            toast({ title: "Deep Scan Complete", description: `Found ${res.tours.length} new adventures!` });
+                          }
+                        } catch (err) {
+                          toast({ title: "Search failed", variant: "destructive" });
+                        } finally {
+                          setFetchingTours(false);
+                        }
+                      }}
+                    >
+                      <Search className="mr-2 h-4 w-4" /> Start Live Web Discovery
+                    </Button>
                   </div>
                 ) : (
-                  <Tabs defaultValue="ota" className="w-full">
+                  <Tabs defaultValue={packages.length > 0 ? "ota" : "internet"} className="w-full">
                     <TabsList className="w-full grid grid-cols-3 p-1 bg-muted/50 rounded-xl">
                       <TabsTrigger value="ota" className="rounded-lg transition-all">From OTAs ({otaPackages.length})</TabsTrigger>
                       <TabsTrigger value="local" className="rounded-lg transition-all">From Local Agents ({localPackages.length})</TabsTrigger>
-                      <TabsTrigger value="internet" className="flex items-center gap-2 rounded-lg transition-all">
+                      <TabsTrigger value="internet" className="flex items-center justify-center gap-2 rounded-lg transition-all">
                         Internet Tours ({fetchedTours.length})
                         {fetchingTours && <Loader2 className="h-3 w-3 animate-spin" />}
                       </TabsTrigger>

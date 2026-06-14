@@ -68,6 +68,49 @@ async function searchSerp(q) {
   return (data.organic_results || []).map(i => ({ title: i.title, url: i.link, snippet: i.snippet, source: 'google' }));
 }
 
+async function searchDuckDuckGo(q) {
+  try {
+    console.log(`🦆 Scraping DuckDuckGo directly for: ${q}`);
+    const { data } = await axios.get(`https://html.duckduckgo.com/html/`, {
+      params: { q },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      timeout: 15000,
+    });
+    
+    const $ = cheerio.load(data);
+    const results = [];
+    
+    $('.result').each((i, el) => {
+      if (i >= 10) return false;
+      const title = $(el).find('.result__title').text().trim();
+      const url = $(el).find('.result__url').attr('href');
+      const snippet = $(el).find('.result__snippet').text().trim();
+      
+      // Clean up DuckDuckGo redirect URLs
+      let cleanUrl = url;
+      if (url && url.startsWith('//duckduckgo.com/l/?uddg=')) {
+        try {
+          cleanUrl = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
+        } catch (e) {
+          cleanUrl = url;
+        }
+      } else if (url && !url.startsWith('http')) {
+         cleanUrl = `https://${url.trim()}`;
+      }
+
+      if (title && cleanUrl) {
+        results.push({ title, url: cleanUrl, snippet, source: 'duckduckgo' });
+      }
+    });
+    
+    return results;
+  } catch (err) {
+    throw new Error(`DuckDuckGo Scrape failed: ${err.message}`);
+  }
+}
+
 /**
  * Sequential search with fallback
  */
@@ -91,13 +134,15 @@ async function searchInternet(q) {
       errors.push(`SerpAPI: ${e.message}`);
     }
   }
-
-  // Last resort: If both configured but failed, throw a summary
-  if (errors.length > 0) {
-    throw new Error(`Search failed: ${errors.join(' | ')}`);
-  }
   
-  throw new Error('No search API configured. Set GOOGLE_SEARCH_API_KEY or SERP_API_KEY');
+  // Last resort: Completely Free DuckDuckGo HTML Scraper (No API key needed!)
+  try {
+    return await searchDuckDuckGo(q);
+  } catch (e) {
+    errors.push(`DuckDuckGo: ${e.message}`);
+  }
+
+  throw new Error(`All search methods failed: ${errors.join(' | ')}`);
 }
 
 // Determine platform from URL
