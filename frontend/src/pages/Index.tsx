@@ -1,7 +1,7 @@
 import { SearchBar } from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plane, Shield, Award, Globe, Sparkles, MapPin, ArrowRight, Loader2, Clock, TrendingUp } from "lucide-react";
+import { Plane, Shield, Award, Globe, Sparkles, MapPin, ArrowRight, Loader2, Clock } from "lucide-react";
 import heroImage from "@/assets/hero-beach.jpg";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";

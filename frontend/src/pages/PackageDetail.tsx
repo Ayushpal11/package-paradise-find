@@ -2,6 +2,26 @@ import { EnquiryForm } from "@/components/EnquiryForm";
 import { packageApi, Package } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { useState, useEffect } from "react";
+import { Loader2, TrendingDown, TrendingUp } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
+import {
+  Star, Plane, Hotel, Car, UtensilsCrossed, MapPin, Tag, CheckCircle2, Sparkles,
+  Clock, Calendar, Users, Shield, Award, Globe, ExternalLink, Eye,
+} from "lucide-react";
 
 const PackageDetail = () => {
   const { id } = useParams();
@@ -11,6 +31,9 @@ const PackageDetail = () => {
   const [showEnquiry, setShowEnquiry] = useState(false);
   const [packageData, setPackageData] = useState<Package | null>(null);
   const [loading, setLoading] = useState(true);
+  const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [priceSummary, setPriceSummary] = useState<any>(null);
+  const [loadingPriceHistory, setLoadingPriceHistory] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -20,7 +43,7 @@ const PackageDetail = () => {
   useEffect(() => {
     const fetchPackage = async () => {
       if (!id) return;
-      
+
       setLoading(true);
       try {
         const data = await packageApi.getById(id);
@@ -40,6 +63,26 @@ const PackageDetail = () => {
 
     fetchPackage();
   }, [id, navigate, toast]);
+
+  // Fetch price history
+  useEffect(() => {
+    if (!id) return;
+    const fetchPriceHistory = async () => {
+      setLoadingPriceHistory(true);
+      try {
+        const data = await packageApi.getPriceHistory(id);
+        if (data.success) {
+          setPriceHistory(data.history || []);
+          setPriceSummary(data.summary);
+        }
+      } catch (error) {
+        console.error("Error fetching price history:", error);
+      } finally {
+        setLoadingPriceHistory(false);
+      }
+    };
+    fetchPriceHistory();
+  }, [id]);
 
   if (loading) {
     return (
@@ -140,11 +183,12 @@ const PackageDetail = () => {
             )}
 
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="w-full grid grid-cols-4 p-1 bg-muted/50 rounded-xl mb-8">
-                <TabsTrigger value="overview" className="rounded-lg">Overview</TabsTrigger>
-                <TabsTrigger value="itinerary" className="rounded-lg">Itinerary</TabsTrigger>
-                <TabsTrigger value="hotel" className="rounded-lg">Accommodation</TabsTrigger>
-                <TabsTrigger value="terms" className="rounded-lg">Important</TabsTrigger>
+              <TabsList className="w-full grid grid-cols-5 p-1 bg-muted/50 rounded-xl mb-8">
+                <TabsTrigger value="overview" className="rounded-lg text-xs sm:text-sm">Overview</TabsTrigger>
+                <TabsTrigger value="itinerary" className="rounded-lg text-xs sm:text-sm">Itinerary</TabsTrigger>
+                <TabsTrigger value="hotel" className="rounded-lg text-xs sm:text-sm">Stay</TabsTrigger>
+                <TabsTrigger value="pricehistory" className="rounded-lg text-xs sm:text-sm">Price</TabsTrigger>
+                <TabsTrigger value="terms" className="rounded-lg text-xs sm:text-sm">Info</TabsTrigger>
               </TabsList>
 
               <AnimatePresence mode="wait">
@@ -237,6 +281,104 @@ const PackageDetail = () => {
                         <p className="text-muted-foreground">Detailed day-wise itinerary is being updated.</p>
                       </div>
                     )}
+                  </motion.div>
+                </TabsContent>
+
+                <TabsContent value="pricehistory" className="outline-none">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                  >
+                    <Card className="border-none shadow-sm overflow-hidden">
+                      <CardContent className="p-6 sm:p-8">
+                        <h3 className="font-bold text-2xl mb-2 flex items-center gap-2">
+                          <TrendingDown className="text-primary h-6 w-6" />
+                          Price History
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-6">
+                          Track how this package's price has changed over time
+                        </p>
+
+                        {loadingPriceHistory ? (
+                          <div className="flex items-center justify-center py-16">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+                          </div>
+                        ) : priceHistory.length > 0 ? (
+                          <div className="space-y-6">
+                            {/* Summary stats */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                                <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Current</div>
+                                <div className="text-lg font-bold text-primary">
+                                  {packageData.currency}{(priceSummary?.current_price || packageData.price).toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                                <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Lowest</div>
+                                <div className="text-lg font-bold text-green-600">
+                                  {packageData.currency}{(priceSummary?.min_price || packageData.price).toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                                <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Highest</div>
+                                <div className="text-lg font-bold text-red-500">
+                                  {packageData.currency}{(priceSummary?.max_price || packageData.price).toLocaleString()}
+                                </div>
+                              </div>
+                              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                                <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Trend</div>
+                                <div className="text-lg font-bold capitalize flex items-center justify-center gap-1">
+                                  {priceSummary?.trend === 'down' && <TrendingDown className="h-4 w-4 text-green-600" />}
+                                  {priceSummary?.trend === 'up' && <TrendingUp className="h-4 w-4 text-red-500" />}
+                                  {priceSummary?.trend || 'stable'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Chart */}
+                            <div className="h-80 w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={[...priceHistory].reverse()} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                  <XAxis
+                                    dataKey="recorded_at"
+                                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                                    fontSize={11}
+                                    tickMargin={8}
+                                  />
+                                  <YAxis
+                                    tickFormatter={(value) => `${packageData.currency}${value.toLocaleString()}`}
+                                    fontSize={11}
+                                    width={70}
+                                  />
+                                  <Tooltip
+                                    formatter={(value: number) => [`${packageData.currency}${value.toLocaleString()}`, 'Price']}
+                                    labelFormatter={(label) => new Date(label).toLocaleString('en-IN')}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="price"
+                                    stroke="#3b82f6"
+                                    strokeWidth={2}
+                                    dot={{ r: 3, fill: '#3b82f6' }}
+                                    activeDot={{ r: 5 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-16 bg-muted/20 rounded-3xl border-2 border-dashed border-slate-200">
+                            <TrendingDown className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                            <h3 className="text-xl font-bold text-slate-400">No price history yet</h3>
+                            <p className="text-slate-400 mt-1">Price tracking will begin after your first search.</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </motion.div>
                 </TabsContent>
               </AnimatePresence>

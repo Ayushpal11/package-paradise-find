@@ -17,6 +17,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 const indianCities = [
   { label: "New Delhi", value: "new delhi" },
@@ -82,9 +91,11 @@ const indianCities = [
 
 export const SearchBar = () => {
   const navigate = useNavigate();
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const [openOrigin, setOpenOrigin] = useState(false);
   const [openDest, setOpenDest] = useState(false);
-  
+  const [mobilePicker, setMobilePicker] = useState<"origin" | "destination" | null>(null);
+
   const [searchData, setSearchData] = useState({
     origin: "",
     destination: "",
@@ -99,110 +110,148 @@ export const SearchBar = () => {
     navigate("/results", { state: searchData });
   };
 
+  const selectCity = (field: "origin" | "destination", value: string) => {
+    setSearchData({ ...searchData, [field]: value === searchData[field] ? "" : value });
+    setOpenOrigin(false);
+    setOpenDest(false);
+    setMobilePicker(null);
+  };
+
+  // Shared command list of cities
+  const renderCityList = (field: "origin" | "destination") => (
+    <Command>
+      <CommandInput placeholder={`Search ${field === "origin" ? "origin city" : "destination"}...`} className="h-12" />
+      <CommandList className="max-h-[60vh] overflow-y-auto">
+        <CommandEmpty>No city found.</CommandEmpty>
+        <CommandGroup>
+          {indianCities.map((city) => (
+            <CommandItem
+              key={city.value}
+              value={city.value}
+              onSelect={() => selectCity(field, city.value)}
+              className="py-3 cursor-pointer"
+            >
+              <Check
+                className={cn(
+                  "mr-2 h-4 w-4",
+                  searchData[field] === city.value ? "opacity-100" : "opacity-0"
+                )}
+              />
+              <span className="flex-1">{city.label}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+
+  const originLabel = searchData.origin
+    ? indianCities.find((city) => city.value === searchData.origin)?.label
+    : "From (City)";
+  const destLabel = searchData.destination
+    ? indianCities.find((city) => city.value === searchData.destination)?.label
+    : "To (Destination)";
+
   return (
     <form
       onSubmit={handleSearch}
-      className="w-full max-w-6xl mx-auto bg-card rounded-2xl shadow-xl p-6 space-y-4 md:space-y-0 relative z-50"
+      className="w-full max-w-6xl mx-auto bg-card rounded-2xl shadow-xl p-4 sm:p-6 space-y-4 md:space-y-0 relative z-50"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Origin Dropdown */}
         <div className="relative">
-          <Popover open={openOrigin} onOpenChange={setOpenOrigin}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={openOrigin}
-                className="w-full justify-between pl-10 h-11 bg-background border-input hover:bg-background/90"
-              >
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <span className="truncate">
-                  {searchData.origin
-                    ? indianCities.find((city) => city.value === searchData.origin)?.label
-                    : "From (City)"}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search city..." />
-                <CommandList>
-                  <CommandEmpty>No city found.</CommandEmpty>
-                  <CommandGroup>
-                    {indianCities.map((city) => (
-                      <CommandItem
-                        key={city.value}
-                        value={city.value}
-                        onSelect={(currentValue) => {
-                          setSearchData({ ...searchData, origin: currentValue === searchData.origin ? "" : currentValue });
-                          setOpenOrigin(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            searchData.origin === city.value ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {city.label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {isMobile ? (
+            <Sheet open={mobilePicker === "origin"} onOpenChange={(open) => setMobilePicker(open ? "origin" : null)}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={mobilePicker === "origin"}
+                  className="w-full justify-between pl-10 h-12 bg-background border-input hover:bg-background/90"
+                >
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <span className="truncate">{originLabel}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl p-0">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="flex items-center gap-2 text-left">
+                    <MapPin className="h-5 w-5 text-primary" /> Select Origin
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">Choose your departure city</SheetDescription>
+                </SheetHeader>
+                {renderCityList("origin")}
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <Popover open={openOrigin} onOpenChange={setOpenOrigin}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openOrigin}
+                  className="w-full justify-between pl-10 h-11 bg-background border-input hover:bg-background/90"
+                >
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <span className="truncate">{originLabel}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0" align="start">
+                {renderCityList("origin")}
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         {/* Destination Dropdown */}
         <div className="relative">
-          <Popover open={openDest} onOpenChange={setOpenDest}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                role="combobox"
-                aria-expanded={openDest}
-                className="w-full justify-between pl-10 h-11 bg-background border-input hover:bg-background/90"
-              >
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <span className="truncate">
-                  {searchData.destination
-                    ? indianCities.find((city) => city.value === searchData.destination)?.label
-                    : "To (Destination)"}
-                </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search destination..." />
-                <CommandList>
-                  <CommandEmpty>No destination found.</CommandEmpty>
-                  <CommandGroup>
-                    {indianCities.map((city) => (
-                      <CommandItem
-                        key={city.value}
-                        value={city.value}
-                        onSelect={(currentValue) => {
-                          setSearchData({ ...searchData, destination: currentValue === searchData.destination ? "" : currentValue });
-                          setOpenDest(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            searchData.destination === city.value ? "opacity-100" : "opacity-0"
-                          )}
-                        />
-                        {city.label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {isMobile ? (
+            <Sheet open={mobilePicker === "destination"} onOpenChange={(open) => setMobilePicker(open ? "destination" : null)}>
+              <SheetTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={mobilePicker === "destination"}
+                  className="w-full justify-between pl-10 h-12 bg-background border-input hover:bg-background/90"
+                >
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <span className="truncate">{destLabel}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl p-0">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="flex items-center gap-2 text-left">
+                    <Search className="h-5 w-5 text-primary" /> Select Destination
+                  </SheetTitle>
+                  <SheetDescription className="sr-only">Choose your destination city</SheetDescription>
+                </SheetHeader>
+                {renderCityList("destination")}
+              </SheetContent>
+            </Sheet>
+          ) : (
+            <Popover open={openDest} onOpenChange={setOpenDest}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openDest}
+                  className="w-full justify-between pl-10 h-11 bg-background border-input hover:bg-background/90"
+                >
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <span className="truncate">{destLabel}</span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0" align="start">
+                {renderCityList("destination")}
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         <div className="relative">
@@ -211,7 +260,7 @@ export const SearchBar = () => {
             type="date"
             value={searchData.startDate}
             onChange={(e) => setSearchData({ ...searchData, startDate: e.target.value })}
-            className="pl-10 h-11"
+            className="pl-10 h-12 sm:h-11"
             required
           />
         </div>
@@ -222,7 +271,7 @@ export const SearchBar = () => {
             type="date"
             value={searchData.endDate}
             onChange={(e) => setSearchData({ ...searchData, endDate: e.target.value })}
-            className="pl-10 h-11"
+            className="pl-10 h-12 sm:h-11"
             required
           />
         </div>
@@ -236,15 +285,15 @@ export const SearchBar = () => {
             placeholder="Travellers"
             value={searchData.travellers}
             onChange={(e) => setSearchData({ ...searchData, travellers: e.target.value })}
-            className="pl-10 h-11"
+            className="pl-10 h-12 sm:h-11"
             required
           />
         </div>
       </div>
 
-      <div className="h-4" />
+      <div className="h-2 sm:h-4" />
       <div className="flex justify-center">
-        <Button type="submit" size="lg" className="w-full md:w-auto px-12 hover:bg-primary/90 flex items-center justify-center transition-all duration-300">
+        <Button type="submit" size="lg" className="w-full md:w-auto px-12 py-6 md:py-5 hover:bg-primary/90 flex items-center justify-center transition-all duration-300">
           <Search className="mr-2 h-5 w-5" />
           Search Packages
         </Button>

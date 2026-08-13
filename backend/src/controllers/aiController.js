@@ -1,98 +1,101 @@
 import { query } from '../db.js';
 import * as mistralService from '../services/mistralService.js';
 import { fetchPlannedTours } from '../services/tourFetcherService.js';
+import { asyncHandler, BadRequest } from '../utils/asyncHandler.js';
+import { validateRequired, sanitizeString, parseNumber } from '../utils/validation.js';
 
 /**
  * AI Controller for trip planning and analysis
  */
 
-export const getAITripPlan = async (req, res) => {
-  try {
-    const { destination, days, startDate, preferences, budget, travellers, origin } = req.body;
+export const getAITripPlan = asyncHandler(async (req, res) => {
+  const { destination, days, startDate, preferences, budget, travellers, origin } = req.body;
 
-    if (!destination) {
-      return res.status(400).json({ error: 'Destination is required' });
-    }
+  validateRequired(req.body, ['destination']);
 
-    // 1. Fetch relevant tour data from database or fetch new if needed
-    let scrapedDataResult = await query(
-      `SELECT * FROM fetched_tours 
-       WHERE destination ILIKE $1 
-       AND (tour_start_date IS NULL OR tour_start_date >= CURRENT_DATE)
-       ORDER BY fetched_at DESC 
-       LIMIT 20`,
-      [`%${destination}%`]
-    );
+  const sanitizedDestination = sanitizeString(destination, 255);
+  const sanitizedDays = parseNumber(days, 7);
+  const sanitizedBudget = budget ? parseNumber(budget) : null;
+  const sanitizedTravellers = parseNumber(travellers, 2);
+  const sanitizedOrigin = origin ? sanitizeString(origin, 255) : null;
+  const sanitizedStartDate = startDate ? sanitizeString(startDate, 50) : null;
+  const sanitizedPreferences = preferences ? sanitizeString(preferences, 1000) : null;
 
-    let scrapedData = scrapedDataResult.rows;
+  // 1. Fetch relevant tour data from database or fetch new if needed
+  let scrapedDataResult = await query(
+    `SELECT * FROM fetched_tours
+     WHERE destination ILIKE $1
+     AND (tour_start_date IS NULL OR tour_start_date >= CURRENT_DATE)
+     ORDER BY fetched_at DESC
+     LIMIT 20`,
+    [`%${sanitizedDestination}%`]
+  );
 
-    // 2. If no data, try to fetch some fresh data
-    if (scrapedData.length === 0) {
-      console.log(`No data found for ${destination}, fetching fresh data...`);
-      const fetchResult = await fetchPlannedTours(destination, origin);
-      scrapedData = fetchResult.tours;
-    }
+  let scrapedData = scrapedDataResult.rows;
 
-    // 3. Use Mistral to generate schedule and analysis
-    const userInput = { destination, days, startDate, preferences, budget, travellers };
-    
-    // We can run these in parallel
-    const [schedule, analysis, recommendations] = await Promise.all([
-      mistralService.generateTripSchedule(userInput, scrapedData),
-      mistralService.performCostAnalysis(userInput, scrapedData),
-      mistralService.recommendTrip(userInput, scrapedData)
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        destination,
-        schedule,
-        analysis,
-        recommendations,
-        references: scrapedData.map(t => ({
-          title: t.title,
-          price: t.price,
-          vendor: t.vendor_name,
-          url: t.source_url,
-          platform: t.source_platform
-        }))
-      }
-    });
-
-  } catch (error) {
-    console.error('Error in getAITripPlan:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate AI trip plan',
-      message: error.message
-    });
+  // 2. If no data, try to fetch some fresh data
+  if (scrapedData.length === 0) {
+    console.log(`No data found for ${sanitizedDestination}, fetching fresh data...`);
+    const fetchResult = await fetchPlannedTours(sanitizedDestination, sanitizedOrigin);
+    scrapedData = fetchResult.tours;
   }
-};
+
+  // 3. Use Mistral to generate schedule and analysis
+  const userInput = {
+    destination: sanitizedDestination,
+    days: sanitizedDays,
+    startDate: sanitizedStartDate,
+    preferences: sanitizedPreferences,
+    budget: sanitizedBudget,
+    travellers: sanitizedTravellers,
+  };
+
+  // We can run these in parallel
+  const [schedule, analysis, recommendations] = await Promise.all([
+    mistralService.generateTripSchedule(userInput, scrapedData),
+    mistralService.performCostAnalysis(userInput, scrapedData),
+    mistralService.recommendTrip(userInput, scrapedData)
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      destination: sanitizedDestination,
+      schedule,
+      analysis,
+      recommendations,
+      references: scrapedData.map(t => ({
+        title: t.title,
+        price: t.price,
+        vendor: t.vendor_name,
+        url: t.source_url,
+        platform: t.source_platform
+      }))
+    }
+  });
+});
 
 /**
  * Specifically get cost analysis
  */
-export const getAICostAnalysis = async (req, res) => {
-  try {
-    const { destination, budget, travellers } = req.body;
-    
-    if (!destination) {
-      return res.status(400).json({ error: 'Destination is required' });
-    }
+export const getAICostAnalysis = asyncHandler(async (req, res) => {
+  const { destination, budget, travellers } = req.body;
 
-    const scrapedDataResult = await query(
-      `SELECT * FROM fetched_tours WHERE destination ILIKE $1 LIMIT 15`,
-      [`%${destination}%`]
-    );
+  validateRequired(req.body, ['destination']);
 
-    const analysis = await mistralService.performCostAnalysis(
-      { destination, budget, travellers },
-      scrapedDataResult.rows
-    );
+  const sanitizedDestination = sanitizeString(destination, 255);
+  const sanitizedBudget = budget ? parseNumber(budget) : null;
+  const sanitizedTravellers = parseNumber(travellers, 2);
 
-    res.json({ success: true, analysis });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
+  const scrapedDataResult = await query(
+    `SELECT * FROM fetched_tours WHERE destination ILIKE $1 LIMIT 15`,
+    [`%${sanitizedDestination}%`]
+  );
+
+  const analysis = await mistralService.performCostAnalysis(
+    { destination: sanitizedDestination, budget: sanitizedBudget, travellers: sanitizedTravellers },
+    scrapedDataResult.rows
+  );
+
+  res.json({ success: true, analysis });
+});

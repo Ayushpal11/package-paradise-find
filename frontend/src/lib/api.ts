@@ -17,6 +17,7 @@ export interface Package {
   id: string;
   title: string;
   destination: string;
+  origin?: string;
   duration: string;
   price: number;
   currency: string;
@@ -52,6 +53,9 @@ export interface Package {
     to: string;
     class: string;
   };
+  // Price drop info
+  priceDrop?: number;
+  originalPrice?: number;
 }
 
 export interface PackageSearchParams {
@@ -152,6 +156,18 @@ export const packageApi = {
   // Submit enquiry
   submitEnquiry: async (enquiry: EnquirySubmit): Promise<void> => {
     await api.post('/api/enquiries', enquiry);
+  },
+
+  // Get price history for a package
+  getPriceHistory: async (id: string): Promise<{ success: boolean; packageId: string; summary: any; history: any[] }> => {
+    const response = await api.get(`/api/packages/${id}/price-history`);
+    return response.data;
+  },
+
+  // Get all price drop alerts
+  getPriceDrops: async (threshold?: number): Promise<{ success: boolean; alerts: any[] }> => {
+    const response = await api.get('/api/packages/price-drops', { params: { threshold } });
+    return response.data;
   },
 };
 

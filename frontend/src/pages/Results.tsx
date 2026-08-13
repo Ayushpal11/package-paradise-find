@@ -220,7 +220,7 @@ const Results = () => {
               </div>
             )}
 
-            <div className="grid lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               <aside className="lg:col-span-1">
                 <FilterSidebar onFilterChange={(newFilters) => setFilters(newFilters)} />
               </aside>
@@ -449,7 +449,7 @@ const Results = () => {
                           <p className="text-muted-foreground">No OTA packages found.</p>
                         </div>
                       ) : (
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {otaPackages.map((pkg, idx) => (
                             <PackageCard key={pkg.id} {...pkg} index={idx} />
                           ))}
@@ -463,7 +463,7 @@ const Results = () => {
                           <p className="text-muted-foreground">No local vendor packages found.</p>
                         </div>
                       ) : (
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {localPackages.map((pkg, idx) => (
                             <PackageCard key={pkg.id} {...pkg} index={idx} />
                           ))}
@@ -511,7 +511,7 @@ const Results = () => {
                           </Button>
                         </div>
                       ) : (
-                        <div className="grid md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {fetchedTours.map((tour) => (
                             <div key={tour.id} className="relative">
                               {(tour.duration?.includes('14D') || tour.full_plan?.includes('14 day') || tour.title.includes('14 Day')) && (
